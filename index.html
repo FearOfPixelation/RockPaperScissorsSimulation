@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rock-Paper-Scissors Simulation</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: 'Arial', sans-serif;
+            background-color: #282c34;
+            color: white;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #settings {
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            width: 400px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+            margin: auto;
+        }
+
+        #settings h1 {
+            margin-bottom: 20px;
+        }
+
+        #settings label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+
+        #settings input[type="text"], #settings select {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        #settings button {
+            width: calc(100% - 22px);
+            padding: 10px;
+            background-color: #61dafb;
+            color: #282c34;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            box-sizing: border-box;
+        }
+
+        #settings button:hover {
+            background-color: #21a1f1;
+        }
+
+        #gameContainer {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #gameInfo {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+
+        #gameInfo div {
+            margin: 0 20px;
+        }
+
+        #winMessage {
+            display: none;
+            font-size: 30px;
+            margin-bottom: 20px;
+        }
+
+        #countdown {
+            display: none;
+            font-size: 200px;
+            font-weight: bold;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        canvas {
+            border: 1px solid white;
+            background-color: black;
+        }
+    </style>
+</head>
+<body>
+    <div id="settings">
+        <h1>Rock-Paper-Scissors Simulation</h1>
+        <label for="numRocks">Number of Rocks:</label>
+        <input type="text" id="numRocks" value="50">
+        <label for="numPapers">Number of Papers:</label>
+        <input type="text" id="numPapers" value="50">
+        <label for="numScissors">Number of Scissors:</label>
+        <input type="text" id="numScissors" value="50">
+        <label for="chase">Chase:</label>
+        <select id="chase">
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+        </select>
+        <label for="cornerSpawn">Corner Spawning:</label>
+        <select id="cornerSpawn">
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+        </select>
+        <label for="countdown">Countdown:</label>
+        <select id="countdownSelect">
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+        </select>
+        <label for="squareSize">Square Size:</label>
+        <select id="squareSize">
+            <option value="500">Small</option>
+            <option value="700">Medium</option>
+            <option value="900">Big</option>
+            <option value="1100">Biggest</option>
+        </select>
+        <label for="speed">Enemy Speed:</label>
+        <select id="speed">
+            <option value="1">Slow</option>
+            <option value="2">Medium</option>
+            <option value="3">Fast</option>
+        </select>
+        <label for="playAs">Play as:</label>
+        <select id="playAs">
+            <option value="none">None</option>
+            <option value="rock">🪨</option>
+            <option value="paper">📄</option>
+            <option value="scissors">✂️</option>
+        </select>
+        <button id="startButton">Start</button>
+    </div>
+    <div id="gameContainer">
+        <div id="winMessage"></div>
+        <div id="countdown">3</div>
+        <div id="gameInfo">
+            <div>🪨: <span id="rockCount">0</span></div>
+            <div>📄: <span id="paperCount">0</span></div>
+            <div>✂️: <span id="scissorsCount">0</span></div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
+    <audio id="cheerSound" src="https://www.soundjay.com/button/sounds/button-10.mp3"></audio>
+    <audio id="rockSound" src="https://github.com/FearOfPixelation/RockPaperScissorsSimulation/raw/main/424997__gregorquendel__rocks-effects-source-recordings-05.wav"></audio>
+    <audio id="paperSound" src="https://github.com/FearOfPixelation/RockPaperScissorsSimulation/raw/main/406400__kretopi__paperwariations-003.wav"></audio>
+    <audio id="scissorsSound" src="https://github.com/FearOfPixelation/RockPaperScissorsSimulation/raw/main/669297__jorgemaca__scissor-cut.mp3"></audio>
+    <script>
+        document.getElementById('startButton').addEventListener('click', startGame);
+        document.addEventListener('keydown', handleKeyPress);
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const cheerSound = document.getElementById('cheerSound');
+        const rockSound = document.getElementById('rockSound');
+        const paperSound = document.getElementById('paperSound');
+        const scissorsSound = document.getElementById('scissorsSound');
+        const winMessage = document.getElementById('winMessage');
+        const countdownElement = document.getElementById('countdown');
+
+        let entities = [];
+        const entityTypes = { ROCK: '🪨', PAPER: '📄', SCISSORS: '✂️' };
+        let gameRunning = false;
+        let player = null;
+        const entitySize = 20;
+        let playerSpeed = 5;
+        let maxSpeedMultiplier = 100;
+        let speedIncreaseInterval = 30000 / maxSpeedMultiplier; // 30 seconds to reach max speed
+        let currentSpeedMultiplier = 1;
+        let speedIncreaseTimeout;
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                startGame();
+            } else {
+                controlPlayer(event);
+            }
+        }
+
+        function handleKeyRelease(event) {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'q'].includes(event.key)) {
+                stopPlayer(event);
+            }
+        }
+
+        // Start the game with the given settings
+        function startGame() {
+            document.getElementById('settings').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'flex';
+            winMessage.style.display = 'none';
+            countdownElement.style.display = 'none';
+
+            const numRocks = parseInt(document.getElementById('numRocks').value);
+            const numPapers = parseInt(document.getElementById('numPapers').value);
+            const numScissors = parseInt(document.getElementById('numScissors').value);
+            const squareSize = parseInt(document.getElementById('squareSize').value);
+            const speed = parseInt(document.getElementById('speed').value);
+            const playAs = document.getElementById('playAs').value;
+            const cornerSpawn = document.getElementById('cornerSpawn').value === 'yes';
+            const countdown = document.getElementById('countdownSelect').value === 'yes';
+
+            canvas.width = squareSize;
+            canvas.height = squareSize;
+
+            playerSpeed = speed * 5; // Make player super fast
+
+            entities = [];
+            if (cornerSpawn) {
+                spawnInCorners(numRocks, numPapers, numScissors, speed);
+            } else {
+                spawnRandomly(numRocks, numPapers, numScissors, speed);
+            }
+
+            if (playAs !== "none") {
+                player = entities.find(e => e.type === entityTypes[playAs.toUpperCase()]);
+                if (player) {
+                    player.isPlayer = true;
+                }
+            }
+
+            if (countdown) {
+                drawEntities();
+                showCountdown().then(() => {
+                    gameRunning = true;
+                    updateCounts();
+                    requestAnimationFrame(updateGame);
+                });
+            } else {
+                gameRunning = true;
+                updateCounts();
+                requestAnimationFrame(updateGame);
+            }
+        }
+
+        // Display the countdown on the screen
+        function showCountdown() {
+            return new Promise(resolve => {
+                countdownElement.style.display = 'block';
+                let count = 3;
+                countdownElement.textContent = count;
+                const interval = setInterval(() => {
+                    count--;
+                    if (count <= 0) {
+                        countdownElement.textContent = "GO!";
+                        setTimeout(() => {
+                            countdownElement.style.display = 'none';
+                            resolve();
+                        }, 1000);
+                        clearInterval(interval);
+                    } else {
+                        countdownElement.textContent = count;
+                    }
+                }, 1000);
+            });
+        }
+
+        // Spawn entities randomly
+        function spawnRandomly(numRocks, numPapers, numScissors, speed) {
+            for (let i = 0; i < numRocks; i++) entities.push(createEntity(entityTypes.ROCK, speed));
+            for (let i = 0; i < numPapers; i++) entities.push(createEntity(entityTypes.PAPER, speed));
+            for (let i = 0; i < numScissors; i++) entities.push(createEntity(entityTypes.SCISSORS, speed));
+        }
+
+        // Spawn entities in corner areas
+        function spawnInCorners(numRocks, numPapers, numScissors, speed) {
+            const width = canvas.width;
+            const height = canvas.height;
+
+            const clusterSize = 50;
+
+            for (let i = 0; i < numRocks; i++) {
+                entities.push(createEntity(entityTypes.ROCK, speed, Math.random() * clusterSize, Math.random() * clusterSize));
+            }
+            for (let i = 0; i < numPapers; i++) {
+                entities.push(createEntity(entityTypes.PAPER, speed, Math.random() * clusterSize + width - clusterSize, Math.random() * clusterSize));
+            }
+            for (let i = 0; i < numScissors; i++) {
+                entities.push(createEntity(entityTypes.SCISSORS, speed, Math.random() * clusterSize + width / 2 - clusterSize / 2, Math.random() * clusterSize + height - clusterSize));
+            }
+        }
+
+        // Create an entity with a given type and speed, with optional initial position
+        function createEntity(type, speed, x = Math.random() * (canvas.width - entitySize * 2) + entitySize, y = Math.random() * (canvas.height - entitySize * 2) + entitySize) {
+            return {
+                type: type,
+                x: x,
+                y: y,
+                dx: (Math.random() - 0.5) * 2 * speed,
+                dy: (Math.random() - 0.5) * 2 * speed,
+                isPlayer: false
+            };
+        }
+
+        // Draw entities on the canvas without moving them
+        function drawEntities() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.font = '30px Arial';
+            for (let entity of entities) {
+                ctx.fillText(entity.type, entity.x, entity.y);
+            }
+        }
+
+        // Update the game state
+        function updateGame() {
+            if (!gameRunning) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let entity of entities) {
+                moveEntity(entity);
+                ctx.font = '30px Arial';
+                if (entity.isPlayer) {
+                    ctx.save();
+                    ctx.shadowColor = 'yellow';
+                    ctx.shadowBlur = 20; // Increase the glow size
+                    ctx.fillText(entity.type, entity.x, entity.y);
+                    ctx.restore();
+                } else {
+                    ctx.fillText(entity.type, entity.x, entity.y);
+                }
+            }
+
+            handleCollisions();
+            requestAnimationFrame(updateGame);
+
+            checkWinCondition();
+        }
+
+        // Move an entity based on its current state and settings
+        function moveEntity(entity) {
+            if (entity.isPlayer) {
+                entity.x += entity.dx * currentSpeedMultiplier;
+                entity.y += entity.dy * currentSpeedMultiplier;
+
+                // Prevent the player from clipping out of the box
+                if (entity.x < 0) entity.x = 0;
+                if (entity.x > canvas.width - entitySize) entity.x = canvas.width - entitySize;
+                if (entity.y < 0) entity.y = 0;
+                if (entity.y > canvas.height - entitySize) entity.y = canvas.height - entitySize;
+
+                return;
+            }
+
+            const chase = document.getElementById('chase').value === 'yes';
+
+            if (chase) {
+                let nearest = null;
+                let minDist = Infinity;
+                for (let e of entities) {
+                    if (e !== entity && e.type !== entity.type) {
+                        const dx = e.x - entity.x;
+                        const dy = e.y - entity.y;
+                        const dist = dx * dx + dy * dy;
+                        if (dist < minDist) {
+                            nearest = e;
+                            minDist = dist;
+                        }
+                    }
+                }
+                if (nearest) {
+                    const angle = Math.atan2(nearest.y - entity.y, nearest.x - entity.x);
+                    entity.dx = Math.cos(angle);
+                    entity.dy = Math.sin(angle);
+                }
+            }
+
+            entity.x += entity.dx;
+            entity.y += entity.dy;
+
+            if (entity.x < entitySize) {
+                entity.x = entitySize;
+                entity.dx *= -1;
+            } else if (entity.x > canvas.width - entitySize) {
+                entity.x = canvas.width - entitySize;
+                entity.dx *= -1;
+            }
+
+            if (entity.y < entitySize) {
+                entity.y = entitySize;
+                entity.dy *= -1;
+            } else if (entity.y > canvas.height - entitySize) {
+                entity.y = canvas.height - entitySize;
+                entity.dy *= -1;
+            }
+        }
+
+        // Control the player's movement
+        function controlPlayer(event) {
+            if (!player) return;
+
+            const speed = playerSpeed;
+
+            switch (event.key) {
+                case 'ArrowUp':
+                    player.dy = -speed;
+                    player.dx = 0;
+                    break;
+                case 'ArrowDown':
+                    player.dy = speed;
+                    player.dx = 0;
+                    break;
+                case 'ArrowLeft':
+                    player.dx = -speed;
+                    player.dy = 0;
+                    break;
+                case 'ArrowRight':
+                    player.dx = speed;
+                    player.dy = 0;
+                    break;
+                case 'q':
+                    increaseSpeed();
+                    break;
+            }
+        }
+
+        // Stop the player's movement and reset speed when the key is released
+        function stopPlayer(event) {
+            if (!player) return;
+
+            switch (event.key) {
+                case 'ArrowUp':
+                case 'ArrowDown':
+                    player.dy = 0;
+                    break;
+                case 'ArrowLeft':
+                case 'ArrowRight':
+                    player.dx = 0;
+                    break;
+                case 'q':
+                    resetSpeed();
+                    break;
+            }
+        }
+
+        // Increase speed gradually up to the maximum multiplier
+        function increaseSpeed() {
+            if (speedIncreaseTimeout) return; // Prevent multiple intervals
+
+            const increase = () => {
+                if (currentSpeedMultiplier < maxSpeedMultiplier) {
+                    currentSpeedMultiplier += 1;
+                    speedIncreaseTimeout = setTimeout(increase, speedIncreaseInterval);
+                } else {
+                    clearTimeout(speedIncreaseTimeout);
+                    speedIncreaseTimeout = null;
+                }
+            };
+
+            increase();
+        }
+
+        // Reset speed multiplier to normal
+        function resetSpeed() {
+            clearTimeout(speedIncreaseTimeout);
+            speedIncreaseTimeout = null;
+            currentSpeedMultiplier = 1;
+        }
+
+        // Handle collisions between entities
+        function handleCollisions() {
+            for (let i = 0; i < entities.length; i++) {
+                for (let j = i + 1; j < entities.length; j++) {
+                    if (isColliding(entities[i], entities[j])) {
+                        resolveCollision(entities[i], entities[j]);
+                    }
+                }
+            }
+        }
+
+        // Check if two entities are colliding
+        function isColliding(entity1, entity2) {
+            const dx = entity1.x - entity2.x;
+            const dy = entity1.y - entity2.y;
+            return Math.sqrt(dx * dx + dy * dy) < entitySize;
+        }
+
+        // Resolve a collision between two entities
+        function resolveCollision(entity1, entity2) {
+            let captured = false;
+            if (entity1.type === entityTypes.ROCK && entity2.type === entityTypes.SCISSORS) {
+                entity2.type = entityTypes.ROCK;
+                captured = true;
+                rockSound.play();
+            } else if (entity1.type === entityTypes.SCISSORS && entity2.type === entityTypes.PAPER) {
+                entity2.type = entityTypes.SCISSORS;
+                captured = true;
+                scissorsSound.play();
+            } else if (entity1.type === entityTypes.PAPER && entity2.type === entityTypes.ROCK) {
+                entity2.type = entityTypes.PAPER;
+                captured = true;
+                paperSound.play();
+            } else if (entity2.type === entityTypes.ROCK && entity1.type === entityTypes.SCISSORS) {
+                entity1.type = entityTypes.ROCK;
+                captured = true;
+                rockSound.play();
+            } else if (entity2.type === entityTypes.SCISSORS && entity1.type === entityTypes.PAPER) {
+                entity1.type = entityTypes.SCISSORS;
+                captured = true;
+                scissorsSound.play();
+            } else if (entity2.type === entityTypes.PAPER && entity1.type === entityTypes.ROCK) {
+                entity1.type = entityTypes.PAPER;
+                captured = true;
+                paperSound.play();
+            }
+
+            if (captured) {
+                if (entity1.isPlayer && entity1.type !== entity2.type) {
+                    entity1.isPlayer = false;
+                    player = null;
+                } else if (entity2.isPlayer && entity1.type !== entity2.type) {
+                    entity2.isPlayer = false;
+                    player = null;
+                }
+                updateCounts();
+            }
+        }
+
+        // Update the counts of each entity type
+        function updateCounts() {
+            const counts = { rock: 0, paper: 0, scissors: 0 };
+            for (let entity of entities) {
+                if (entity.type === entityTypes.ROCK) counts.rock++;
+                if (entity.type === entityTypes.PAPER) counts.paper++;
+                if (entity.type === entityTypes.SCISSORS) counts.scissors++;
+            }
+            document.getElementById('rockCount').textContent = counts.rock;
+            document.getElementById('paperCount').textContent = counts.paper;
+            document.getElementById('scissorsCount').textContent = counts.scissors;
+        }
+
+        // Check if one type has won
+        function checkWinCondition() {
+            const types = new Set(entities.map(entity => entity.type));
+            if (types.size === 1) {
+                const winner = types.values().next().value;
+                winMessage.textContent = `${winner} WON!`;
+                winMessage.style.display = 'block';
+                cheerSound.play();
+                setTimeout(() => {
+                    resetGame();
+                }, 3000);
+            }
+        }
+
+        // Reset the game
+        function resetGame() {
+            gameRunning = false;
+            document.getElementById('settings').style.display = 'block';
+            document.getElementById('gameContainer').style.display = 'none';
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Add event listeners for keyup and keydown
+        document.addEventListener('keydown', handleKeyPress);
+        document.addEventListener('keyup', handleKeyRelease);
+    </script>
+</body>
+</html>
